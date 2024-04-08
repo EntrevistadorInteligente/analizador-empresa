@@ -1,43 +1,105 @@
 from selenium.webdriver.common.by import By
 from configuration_driver import setup_driver
+import csv
 import time
 import random
-#a
-def extraer_enlaces_y_guardar(url_base, parametro_inicio, parametro_fin, nombre_archivo):
-    driver = setup_driver()
 
-    enlaces_unicos = set()
+def leer_urls_de_archivo(ruta_archivo):
+    with open(ruta_archivo, 'r', encoding='utf-8') as archivo:
+        return [linea.strip() for linea in archivo if linea.strip()]
+
+def extraer_informacion_y_guardar_csv(nombre_archivo_urls, parametro_inicio, parametro_fin, nombre_archivo_csv):
+    urls_base = leer_urls_de_archivo(nombre_archivo_urls)
+    driver = setup_driver()
+    urls_procesadas = set()
+
+    subdominio_pais = {
+        'co': 'Colombia',
+        'ar': 'Argentina',
+        'cl': 'Chile',
+        'ec': 'Ecuador',
+        'ni': 'Nicaragua',
+        'uy': 'Uruguay',
+        'mx': 'Mexico',
+        'sv': 'El Salvador',
+        'pa': 'Panama',
+        've': 'Venezuela',
+        'pe': 'Peru',
+        'bo': 'Bolivia',
+        'gt': 'Guatemala',
+        'py': 'Paraguay',
+        'do': 'Republica Dominicana',
+        'cr': 'Costa Rica',
+        'cu': 'Cuba',
+        'hn': 'Honduras',
+        'pr': 'Puerto Rico'
+    }
+
     try:
-        with open(nombre_archivo, "r") as archivo:
-            for linea in archivo:
-                enlaces_unicos.add(linea.strip())
+        with open(nombre_archivo_csv, mode='r', newline='', encoding='utf-8') as archivo_csv:
+            lector_csv = csv.reader(archivo_csv, delimiter=',', quotechar='"')
+            next(lector_csv, None)
+            for fila in lector_csv:
+                urls_procesadas.add(fila[0])
     except FileNotFoundError:
         pass
 
-    for i in range(parametro_inicio, parametro_fin + 1):
-        url_con_parametro = f"{url_base}?p={i}"
-        try:
-            driver.get(url_con_parametro)
-            enlaces = driver.find_elements(By.CSS_SELECTOR, "a.js-o-link")
+    with open(nombre_archivo_csv, mode='a', newline='', encoding='utf-8') as archivo_csv:
+        escritor_csv = csv.writer(archivo_csv, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        if not urls_procesadas:
+            escritor_csv.writerow(['URL', 'City_Region', 'Country', 'Industry', 'Puestos'])
 
-            with open(nombre_archivo, "a") as archivo:
-                for enlace in enlaces:
-                    href = enlace.get_attribute('href')
-                    print(href)
-                    if href not in enlaces_unicos:
-                        archivo.write(href + "\n")
-                        enlaces_unicos.add(href)
+        for url_base in urls_base:
+            print(url_base)
+            country_code = url_base.split('.')[0].split('//')[-1]
+            country = subdominio_pais.get(country_code, 'No disponible')
 
-            print(f"Se han extraído y guardado los enlaces de la página {i} en '{nombre_archivo}' sin duplicados.")
+            for i in range(parametro_inicio, parametro_fin + 1):
+                url_con_parametro = f"{url_base}?p={i}"
+                try:
+                    driver.get(url_con_parametro)
+                    articulos = driver.find_elements(By.CSS_SELECTOR, "article.box_p")
+                    if not articulos:
+                        print(f"No se encontraron artículos en la página {i} de {url_base}. Se detiene la búsqueda.")
+                        break
+                    for articulo in articulos:
+                        url = articulo.find_element(By.CSS_SELECTOR, "a.js-o-link").get_attribute('href')
+                        print(url)
+                        if url not in urls_procesadas:
+                            urls_procesadas.add(url)
 
-        finally:
-            if i == parametro_fin:
-                driver.quit()
+                            try:
+                                location_element = articulo.find_element(By.XPATH, ".//li[div[contains(@class, 'icon local')]]")
+                                city_region = location_element.text
+                            except Exception:
+                                city_region = "No disponible"
 
-        tiempo_espera = random.randint(5, 10)
-        print(f"Esperando {tiempo_espera} segundos antes de procesar la siguiente página...")
-        time.sleep(tiempo_espera)
+                            industry = "No disponible"
+                            all_potential_industries = articulo.find_elements(By.XPATH, ".//li[div[contains(@class, 'icon')]]")
+                            for element in all_potential_industries:
+                                div_class = element.find_element(By.TAG_NAME, "div").get_attribute("class")
+                                if div_class == "icon gent":
+                                    industry = element.text
+                                    break
 
-url_base = "https://co.computrabajo.com/empresas/buscador"
-nombre_archivo = "enlaces.txt"
-extraer_enlaces_y_guardar(url_base, 1, 500, nombre_archivo)
+                            try:
+                                puestos_element = articulo.find_element(By.XPATH, ".//li[div[contains(@class, 'icon gent_persona')]]")
+                                puestos = puestos_element.text.split(' ')[0]
+                            except Exception:
+                                puestos = "No disponible"
+
+                            escritor_csv.writerow([url, city_region, country, industry, puestos])
+
+                finally:
+                    if url_base == urls_base[-1] and i == parametro_fin:
+                        driver.quit()
+
+                tiempo_espera = random.randint(5, 10)
+                print(f"Esperando {tiempo_espera} segundos antes de procesar la siguiente página...")
+                time.sleep(tiempo_espera)
+
+nombre_archivo_urls = "computrabajo_input_urls.txt"
+nombre_archivo_csv = "informacion_empresas.csv"
+parametro_inicio = 1
+parametro_fin = 500
+extraer_informacion_y_guardar_csv(nombre_archivo_urls, parametro_inicio, parametro_fin, nombre_archivo_csv)
