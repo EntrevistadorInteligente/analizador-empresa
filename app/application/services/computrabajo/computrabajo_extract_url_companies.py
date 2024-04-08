@@ -47,26 +47,32 @@ def extraer_informacion_y_guardar_csv(nombre_archivo_urls, parametro_inicio, par
     with open(nombre_archivo_csv, mode='a', newline='', encoding='utf-8') as archivo_csv:
         escritor_csv = csv.writer(archivo_csv, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         if not urls_procesadas:
-            escritor_csv.writerow(['URL', 'City_Region', 'Country', 'Industry', 'Puestos'])
+            escritor_csv.writerow(['URL', 'Company Name', 'City_Region', 'Country', 'Industry', 'Puestos', 'Reviews'])
 
         for url_base in urls_base:
-            print(url_base)
+            contador_url_base = 0
+            contador_url_base += 1
+            print(f"{contador_url_base} / {len(urls_base)} - Url Base: {url_base}")
             country_code = url_base.split('.')[0].split('//')[-1]
             country = subdominio_pais.get(country_code, 'No disponible')
 
             for i in range(parametro_inicio, parametro_fin + 1):
                 url_con_parametro = f"{url_base}?p={i}"
+                print(f"Pagina = {i} / {parametro_fin}")
+
                 try:
                     driver.get(url_con_parametro)
+                    time.sleep(3)
                     articulos = driver.find_elements(By.CSS_SELECTOR, "article.box_p")
                     if not articulos:
                         print(f"No se encontraron artículos en la página {i} de {url_base}. Se detiene la búsqueda.")
                         break
                     for articulo in articulos:
                         url = articulo.find_element(By.CSS_SELECTOR, "a.js-o-link").get_attribute('href')
-                        print(url)
                         if url not in urls_procesadas:
                             urls_procesadas.add(url)
+
+                            company_name = articulo.find_element(By.CSS_SELECTOR, "h2 a.js-o-link").text
 
                             try:
                                 location_element = articulo.find_element(By.XPATH, ".//li[div[contains(@class, 'icon local')]]")
@@ -88,7 +94,13 @@ def extraer_informacion_y_guardar_csv(nombre_archivo_urls, parametro_inicio, par
                             except Exception:
                                 puestos = "No disponible"
 
-                            escritor_csv.writerow([url, city_region, country, industry, puestos])
+                            try:
+                                reviews_element = articulo.find_element(By.CSS_SELECTOR, "a.fl.w_100.empr.it-blank span.valoracions")
+                                reviews = reviews_element.text.split(' ')[0]
+                            except Exception:
+                                reviews = "No disponible"
+
+                            escritor_csv.writerow([url, company_name, city_region, country, industry, puestos, reviews])
 
                 finally:
                     if url_base == urls_base[-1] and i == parametro_fin:
