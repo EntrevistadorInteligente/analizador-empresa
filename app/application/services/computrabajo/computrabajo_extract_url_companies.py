@@ -49,8 +49,8 @@ def extraer_informacion_y_guardar_csv(nombre_archivo_urls, parametro_inicio, par
         if not urls_procesadas:
             escritor_csv.writerow(['URL', 'Company Name', 'City_Region', 'Country', 'Industry', 'Puestos', 'Reviews'])
 
+        contador_url_base = 0
         for url_base in urls_base:
-            contador_url_base = 0
             contador_url_base += 1
             print(f"{contador_url_base} / {len(urls_base)} - Url Base: {url_base}")
             country_code = url_base.split('.')[0].split('//')[-1]
@@ -62,7 +62,7 @@ def extraer_informacion_y_guardar_csv(nombre_archivo_urls, parametro_inicio, par
 
                 try:
                     driver.get(url_con_parametro)
-                    time.sleep(3)
+                    time.sleep(5)
                     articulos = driver.find_elements(By.CSS_SELECTOR, "article.box_p")
                     if not articulos:
                         print(f"No se encontraron artículos en la página {i} de {url_base}. Se detiene la búsqueda.")
