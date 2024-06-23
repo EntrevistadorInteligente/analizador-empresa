@@ -22,5 +22,5 @@ public class InformacionEmpresaEntity {
     private String seniority;
     private String pais;
     private String descripcionVacante;
-    private List<String> informacionEmpresaVect;
+    private List<EntrevistaEntity> informacionEmpresaVect;
 }

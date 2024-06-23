@@ -12,7 +12,6 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class InvestigarEmpresaService implements InvestigarEmpresa {
 
-
     private final CrearInvestigarEmpresaService crearInvestigarEmpresaService;
     private final JmsPublisherAdapter jmsPublisherAdapter;
 
